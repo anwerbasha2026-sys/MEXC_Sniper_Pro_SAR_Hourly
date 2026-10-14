@@ -17,6 +17,7 @@ android.archs = arm64-v8a
 android.accept_sdk_license = True
 android.private_storage = True
 p4a.bootstrap = sdl2
+p4a.branch = v2024.01.21
 
 [buildozer]
 log_level = 2
