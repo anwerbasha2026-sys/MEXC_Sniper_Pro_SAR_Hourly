@@ -1,1 +1,78 @@
+name: Build MEXC Sniper Pro APK (ONN 3 Tablet)
 
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git zip unzip curl autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev \
+            libtinfo5 cmake libffi-dev libssl-dev \
+            build-essential ccache
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install Buildozer
+        run: python -m pip install --upgrade pip setuptools wheel buildozer
+
+      - name: Validate source
+        run: python -m py_compile main.py
+
+      - name: Build debug APK for ARM64 tablet
+        env:
+          BUILDOZER_WARN_ON_ROOT: '0'
+        run: |
+          buildozer -v android debug 2>&1 | tee buildozer-build.log
+
+      - name: Verify APK output
+        run: |
+          set -euo pipefail
+          APK="$(find bin -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          test -s "$APK"
+          mkdir -p artifacts
+          cp "$APK" artifacts/MEXC_Sniper_Pro_SAR_Hourly_ONN3_debug.apk
+          file artifacts/MEXC_Sniper_Pro_SAR_Hourly_ONN3_debug.apk
+          sha256sum artifacts/MEXC_Sniper_Pro_SAR_Hourly_ONN3_debug.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MEXC-Sniper-Pro-ONN3-APK
+          path: artifacts/MEXC_Sniper_Pro_SAR_Hourly_ONN3_debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build log if failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ONN3-APK-build-diagnostics
+          path: buildozer-build.log
+          if-no-files-found: warn
+          retention-days: 7
